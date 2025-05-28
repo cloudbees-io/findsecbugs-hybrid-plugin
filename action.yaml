@@ -1,1 +1,40 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: action
+name: findsecbugs-hybrid-plugin
 
+inputs:
+  binary-tar-path:
+    description: 'Path to the binary to scan'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Generate reference files 
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:0dea78066b1aecbca8a3a6674aade8ee49b5d57a
+      with:
+          entrypoint: assets-plugin-chain-utils
+          args: generate-references --asset-type "BINARY" --tags "BINARY_JAR" --binary-tar-path ${{ inputs.binary-tar-path }}
+      env:
+          INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
+          INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
+          INPUT_RUN_ID: ${{ cloudbees.run_id }}
+          
+    - name: Run findsecbugs compliance plugin
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-findsecbugs-scanner:57b6972c60a4e285c10e4fbbc9740be3c67ef906
+      env:
+          RUN_ID: ${{ cloudbees.run_id }}
+          JOB_ID: ${{ job.id }}
+          STEP_ID: ${{ step.internal.id }}
+      run: /app/plugin-findsecbugs -mode single
+      
+    - name: Complete execution plan
+      uses: docker://public.ecr.aws/l7o7z1g8/actions/assets-plugin-chain-utils:0dea78066b1aecbca8a3a6674aade8ee49b5d57a
+      id: process-outputs
+      with:
+          entrypoint: assets-plugin-chain-utils
+          args: process-outputs
+      env:
+          INPUT_CLOUDBEES_API_TOKEN: ${{ cloudbees.api.token }}
+          INPUT_CLOUDBEES_API_URL: ${{ cloudbees.api.url }}
+          INPUT_RUN_ID: ${{ cloudbees.run_id }}
