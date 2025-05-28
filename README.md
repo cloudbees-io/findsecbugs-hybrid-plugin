@@ -1,0 +1,1 @@
+# findsecbugs-hybrid-plugin
